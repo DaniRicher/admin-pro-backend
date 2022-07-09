@@ -1,6 +1,7 @@
 const { response } = require( 'express' );
-const bcrypt = require('bcrypt')
+const bcrypt = require('bcrypt');
 const Usuario = require('../models/usuario');
+const { generarJWT } = require('../helpers/jwt');
 
 const getUsuarios = async (req, res) => {
 
@@ -8,7 +9,8 @@ const getUsuarios = async (req, res) => {
 
     res.json({
         ok: true,
-        usuarios
+        usuarios,
+        uid: req.uid
     });
 
 }
@@ -16,6 +18,7 @@ const getUsuarios = async (req, res) => {
 const crearUsuarios = async (req, res = response) => {
 
     const { email, password } = req.body;
+
     try {
 
         const existeEmail = await Usuario.findOne({ email });
@@ -32,13 +35,18 @@ const crearUsuarios = async (req, res = response) => {
         //Encriptar contraseña
         const salt = bcrypt.genSaltSync();
         usuario.password = bcrypt.hashSync( password, salt );
+
         
         // Guardar usuario
         await usuario.save();
+        
+        //Generar el JWT
+        const token = await  generarJWT( usuario.id );
 
         res.json({
             ok: true,
-            usuario
+            usuario,
+            token
         });
 
     } catch (error) {
@@ -59,6 +67,7 @@ const actualizarUsuario = async ( req, res = response ) => {
 
     try {
 
+        //Verificar si existe usuario con este id
         const usuarioDB = await Usuario.findById( uid );
 
         if( !usuarioDB ){
@@ -69,12 +78,10 @@ const actualizarUsuario = async ( req, res = response ) => {
         }
 
         //Actualizaciones 
-        const campos = req.body;
+        const {password, google, email, ...campos} = req.body;
 
-        if( usuarioDB.email === req.body.email ){
-            delete campos.email;
-        }else {
-            const existeEmail = await Usuario.findOne({ email: req.body.email });
+        if( usuarioDB.email !== email ) {
+            const existeEmail = await Usuario.findOne({ email });
             if( existeEmail ){
                 return res.status(400).json({
                     ok: false,
@@ -83,8 +90,7 @@ const actualizarUsuario = async ( req, res = response ) => {
             }
         }
 
-        delete campos.password;
-        delete campos.google;
+        campos.email = email;
 
         const usuarioActualizado = await Usuario.findByIdAndUpdate( uid, campos, { new:true } );
 
@@ -103,8 +109,44 @@ const actualizarUsuario = async ( req, res = response ) => {
     }
 }
 
+const eliminarUsuario = async( req, res = response ) => {
+
+    const uid = req.params.id;
+
+    try {
+
+         //Verificar si existe usuario con este id
+         const usuarioDB = await Usuario.findById( uid );
+
+         if( !usuarioDB ){
+             return res.status(404).json({
+                 ok: false,
+                 msg: 'No existe un usuario con ese ID'
+             })
+         }
+
+         await Usuario.findByIdAndDelete( uid )
+
+        res.status(200).json({
+            ok: true,
+            msg: 'Usuario eliminado',
+        });
+        
+    } catch (error) {
+
+        console.log(error);
+        res.status(500).json({
+            ok: false,
+            msg: 'Hable con el administrador'
+        });
+        
+    }
+
+}
+
 module.exports = {
     getUsuarios,
     crearUsuarios,
-    actualizarUsuario
+    actualizarUsuario,
+    eliminarUsuario
 }
