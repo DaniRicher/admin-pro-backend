@@ -3,4 +3,16 @@
 node_modules/
 
 
-env
+**.env
+
+uploads/hospitales/**.jpg
+uploads/hospitales/**.png
+uploads/hospitales/**.gif
+
+uploads/medicos/**.jpg
+uploads/medicos/**.png
+uploads/medicos/**.gif
+
+uploads/usuarios/**.jpg
+uploads/usuarios/**.png
+uploads/usuarios/**.gif
